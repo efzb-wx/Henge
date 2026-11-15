@@ -102,7 +102,7 @@ struct RootView: View {
 }
 
 extension View {
-    /// Husk's screens are written against an iOS 15 shim; Henge needs iOS 17, so this is the real thing.
+    /// Husk's screens are written against an iOS 15 shim; Henge uses iOS 16's native navigation.
     func hengeDestination<D: Hashable, C: View>(for data: D.Type, @ViewBuilder destination: @escaping (D) -> C) -> some View {
         navigationDestination(for: data, destination: destination)
     }

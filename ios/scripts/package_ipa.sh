@@ -4,7 +4,7 @@
 # HENGE_ENTITLEMENTS environment variable (default Henge/Henge.entitlements), as Husk's
 # package_ipa.sh does: the sideloader (SideStore, AltStore, Impactor) re-signs it
 # with the user's own certificate and keeps the entitlements it can.
-# --trollstore strips the entitlements TrollStore bans under PPL/TXM.
+# --trollstore strips banned entitlements and the newer-OS built-in JIT helper.
 set -e
 IOS="$(cd "$(dirname "$0")/.." && pwd)"
 TROLLSTORE=false
@@ -42,6 +42,18 @@ cp "$IOS/${HENGE_ENTITLEMENTS:-Henge/Henge.entitlements}" "$ENT"
 BANNED_KEYS=("com.apple.private.cs.debugger" "dynamic-codesigning" "com.apple.private.skip-library-validation")
 if [ "$TROLLSTORE" = true ]; then for k in "${BANNED_KEYS[@]}"; do plutil -remove "$k" "$ENT" 2>/dev/null || true; done; fi
 SAPP="$STAGE/Payload/Henge.app"
+if [ "$TROLLSTORE" = true ]; then
+    # TrollStore supplies JIT itself. Do not ship the iOS 26 helper or its
+    # iOS 17.4 framework in the iOS 16 package; editing their plists would not
+    # make those binaries compatible with an older OS.
+    rm -rf "$SAPP/PlugIns/HengeJITHelper.appex" "$SAPP/Frameworks/StikJIT.framework"
+    PLIST_MIN=$(plutil -extract MinimumOSVersion raw -o - "$SAPP/Info.plist")
+    BINARY_MIN=$(xcrun vtool -show-build "$SAPP/Henge" | awk '$1 == "minos" { print $2; exit }')
+    if [ "$PLIST_MIN" != "16.0" ] || [ "$BINARY_MIN" != "16.0" ]; then
+        echo "==> expected iOS 16.0 in both plist and binary, got $PLIST_MIN / $BINARY_MIN; clean and rebuild" >&2
+        exit 1
+    fi
+fi
 plutil -insert HengeBuildCommit -string "$(git -C "$IOS/.." rev-parse --short=12 HEAD 2>/dev/null || echo unknown)" "$SAPP/Info.plist"
 plutil -insert HengeBuildDate -string "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SAPP/Info.plist"
 # Apple's boot ROM is fetched on the device (BootROM.swift) and must never ship. An older build folder can still

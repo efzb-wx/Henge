@@ -51,6 +51,9 @@ enum HengeBuiltInJIT {
         if getenv("LC_HOME_PATH") != nil {
             return "Built-in JIT is unavailable inside LiveContainer. Use StikDebug instead."
         }
+        guard helperIdentifier != nil else {
+            return "This package does not include built-in JIT. Use TrollStore or StikDebug instead."
+        }
         return nil
 #endif
     }

@@ -12,6 +12,22 @@ libslirp and glib for iOS). `HENGE_ENTITLEMENTS` picks the app's entitlements fi
 `project.yml` sets it and an environment variable does not override that), and to
 the packager as an environment variable (`HENGE_ENTITLEMENTS=... ios/scripts/package_ipa.sh`).
 
+- **Experimental iOS 16 build**: the app, engine, restore stack and translation
+  layer target iOS 16.0. The TrollStore package removes the iOS 26 JIT helper
+  and StikJIT framework (whose minimum is iOS 17.4); use TrollStore's JIT instead.
+  The regular IPA keeps these optional components for newer systems.
+  When updating an existing checkout, remove the generated `build/ios`,
+  `tl/build/ios` and `ios/build` directories before rebuilding, so objects and
+  libzip cached for iOS 17 are not reused. Prebuilt static dependencies must also
+  target iOS 16 or earlier. GitHub Actions runs `check_display.sh` against iOS 16
+  before packaging, and the TrollStore packager checks both the app plist and
+  the executable's deployment target. A successful build is not a device test:
+  installation, JIT, macOS boot and graphics still need checking on iOS 16.
+  In particular, the existing guest shader relabelling targets iOS 17's Metal
+  format; iOS 16 may reject these shaders or show a black screen. This change
+  does not establish compatibility with iOS 16's private Metal compiler.
+- **Hardware**: iOS 16 does not relax the A14/M1-or-newer requirement.
+
 - **JIT**: on iOS 26+ (TXM) only an attached debugger can grant executable
   memory. Henge uses the same machinery as Husk: StikDebug, TrollStore, a
   jailbreak, or the built-in StikJIT helper (`HengeJITHelper.appex`, with

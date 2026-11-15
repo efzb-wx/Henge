@@ -1,6 +1,6 @@
 # .github/workflows/build-henge.yml
 #
-# Builds a Henge.ipa from your fork's main branch on a GitHub-hosted macOS
+# Builds Henge.ipa and Henge.tipa from this fork on a GitHub-hosted macOS
 # runner, no Mac needed. Free on a PUBLIC repo: public repos get unlimited
 # minutes on hosted runners, including macOS. On a private repo, macOS minutes
 # bill at 10x, so the free tier's ~2000 min/month is only ~200 macOS minutes.
@@ -13,8 +13,11 @@
 
 name: Build Henge IPA
 
-# Manual only (Actions tab > Build Henge IPA > Run workflow): pushes to main don't build an IPA.
+# Build this experimental branch on push; other branches remain manual-only.
 on:
+  push:
+    branches:
+      - codex/ios16-support
   workflow_dispatch: {}
 
 env:
@@ -96,6 +99,10 @@ jobs:
       - name: Build the engine
         working-directory: Henge
         run: make ios-lib
+
+      - name: Check iOS 16 source compatibility and display routing
+        working-directory: Henge
+        run: bash ios/scripts/check_display.sh
 
       - name: Package Henge.ipa
         working-directory: Henge
