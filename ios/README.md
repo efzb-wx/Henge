@@ -23,9 +23,16 @@ the packager as an environment variable (`HENGE_ENTITLEMENTS=... ios/scripts/pac
   before packaging, and the TrollStore packager checks both the app plist and
   the executable's deployment target. A successful build is not a device test:
   installation, JIT, macOS boot and graphics still need checking on iOS 16.
-  In particular, the existing guest shader relabelling targets iOS 17's Metal
-  format; iOS 16 may reject these shaders or show a black screen. This change
-  does not establish compatibility with iOS 16's private Metal compiler.
+  Guest shaders now use iOS 16's library/function tags (AIR 2.5 / Metal 3.0)
+  and target triples on iOS 16, retaining the original iOS 17 target on newer
+  systems. Previously the hard-coded iOS 17 tags caused pipeline creation to
+  fail on iPadOS 16.6.1 (black screen with a working cursor and setup audio).
+  Stage 2 preserves inner AIR metadata and instructions; forced stage 3 remains
+  experimental because changing inner metadata can trigger compiler upgrades.
+  LLVM parsing, instruction preservation, hashes and idempotence were checked
+  locally against 59 captured libraries. CI uses generated, original test IR
+  (`tests/check_metallib.py`); no captured Apple shaders are shipped or committed.
+  These checks do not establish GPU execution on iOS 16's private Metal compiler.
   Dynamic vertex-stride commands also use the older buffer/offset API on iOS 16,
   retaining the pipeline's fixed strides and logging a warning; draws that need
   a different dynamic stride may render incorrectly.

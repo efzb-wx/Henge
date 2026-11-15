@@ -32,6 +32,8 @@ typedef struct {
 } HvMetallibTarget;
 
 extern const HvMetallibTarget hv_metallib_ios17;
+/* iOS 16: library 2.6, function version tags AIR 2.5 / Metal 3.0. */
+extern const HvMetallibTarget hv_metallib_ios16;
 
 /* As hv_metallib_relabel, for any target (tests relabel a newer macOS's libraries for the one they run on). */
 int hv_metallib_relabel_for(uint8_t *buf, size_t len, int stage, const HvMetallibTarget *t, const char **why);

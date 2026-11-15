@@ -459,12 +459,23 @@ static MTLTextureDescriptor *descriptor_v2(const uint8_t *d) {
        "Target OS is incompatible", the module still saying macOS (issue 44). The stage that worked is tried first
        from then on. Stage 3 (the version metadata too) only when asked for: HV_PVG_RELABEL=3. HV_PVG_NO_RELABEL:
        never. */
+    const HvMetallibTarget *target = &hv_metallib_ios17;
+#if TARGET_OS_IPHONE
+    if (@available(iOS 17.0, *)) {} else { target = &hv_metallib_ios16; }
+#endif
+    /* The old hard-coded iOS 17 target loads on iOS 16, but its AIR 2.6 /
+       Metal 3.1 function version tags are rejected when creating pipelines.
+       Keep the existing stage 2 strategy, with tags/triples for the actual OS.
+       Stage 3 remains opt-in: rewriting inner metadata can trigger unsafe
+       compiler upgrades of newer AIR instructions (devices/metallib.h). */
     static int start_stage = -1; /* 0: as sent; 1, 2, 3: relabelled */
     static int no_relabel = -1;
     if (no_relabel < 0) no_relabel = getenv("HV_PVG_NO_RELABEL") != NULL;
     if (start_stage < 0) { /* HV_PVG_RELABEL=N (testing): every library relabelled at stage N from the start */
         const char *f = getenv("HV_PVG_RELABEL");
         start_stage = f && atoi(f) >= 1 && atoi(f) <= 3 ? atoi(f) : 0;
+        if (target->os_major == 16)
+            [self complain:@"experimental iOS 16 shaders: function tags AIR <= 2.5 / Metal <= 3.0; stage 2 preserves inner metadata"];
     }
     NSError *err = nil, *first_err = nil;
     id<MTLLibrary> library = nil;
@@ -474,8 +485,13 @@ static MTLTextureDescriptor *descriptor_v2(const uint8_t *d) {
         if (stage) {
             try = [lib mutableCopy];
             const char *why = NULL;
-            if (hv_metallib_relabel(try.mutableBytes, try.length, stage, &why) <= 0) continue;
-            if (why) [self complain:[NSString stringWithFormat:@"library: relabelled (stage %d) only in part: %s", stage, why]];
+            int changed = hv_metallib_relabel_for(try.mutableBytes, try.length, stage, target, &why);
+            if (changed < 0) {
+                [self complain:[NSString stringWithFormat:@"library: cannot relabel for iOS %u (stage %d): %s", target->os_major, stage, why ?: "unreadable library"]];
+                continue;
+            }
+            if (!changed) continue;
+            if (why) [self complain:[NSString stringWithFormat:@"library: relabelled for iOS %u (stage %d): %s", target->os_major, stage, why]];
         }
         dispatch_data_t data = dispatch_data_create(try.bytes, try.length, NULL, DISPATCH_DATA_DESTRUCTOR_DEFAULT);
         err = nil;
@@ -483,7 +499,7 @@ static MTLTextureDescriptor *descriptor_v2(const uint8_t *d) {
         if (library) loaded_at = stage;
         if (!library && !first_err) first_err = err;
         if (library && (stage != start_stage || (stage && first_err == nil && !getenv("HV_PVG_RELABEL_QUIET")))) {
-            [self complain:[NSString stringWithFormat:@"library: loaded relabelled for iOS 17 (stage %d; as sent: %@)", stage,
+            [self complain:[NSString stringWithFormat:@"library: loaded relabelled for iOS %u (stage %d; as sent: %@)", target->os_major, stage,
                                                       first_err.localizedDescription ?: @"not tried"]];
             start_stage = stage;
         } else if (!library && stage) {

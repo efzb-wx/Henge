@@ -70,6 +70,21 @@ jobs:
             rustup target add aarch64-apple-ios
           }
 
+      - name: Set up Python for shader integrity tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify iOS 16 and iOS 17 shader relabelling
+        working-directory: Henge
+        run: |
+          set -euo pipefail
+          mkdir -p build/shader-check
+          xcrun --sdk macosx clang -std=c11 -dynamiclib devices/metallib.c tests/metallib_bridge.c -o build/shader-check/metallib-test.dylib
+          python -m venv build/shader-check/venv
+          build/shader-check/venv/bin/pip install llvmlite==0.46.0
+          build/shader-check/venv/bin/python tests/check_metallib.py build/shader-check/metallib-test.dylib
+
       # build_ios.sh builds from third_party/build/<name>; the sources are
       # fetched by fetch_sources.sh, which Husk's own ci_build.sh runs first.
       - name: Fetch Husk's third-party sources

@@ -27,6 +27,7 @@
 #include <string.h>
 
 const HvMetallibTarget hv_metallib_ios17 = { "ios", 0x0001, 0x82, 17, 7, 2, 6, 3, 1 };
+const HvMetallibTarget hv_metallib_ios16 = { "ios", 0x0001, 0x82, 16, 6, 2, 5, 3, 0 };
 
 static uint16_t rd16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
 static uint32_t rd32(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -558,6 +559,9 @@ int hv_metallib_relabel_for(uint8_t *buf, size_t len, int stage, const HvMetalli
             const char *w = NULL;
             int c = relabel_bitcode(code, (size_t)mdsz, t, stage >= 3, &w);
             if (!*why && (c < 0 || w)) *why = w ? w : "unreadable bitcode";
+            /* A partial stage-3 rewrite is unsafe: its triple or earlier metadata
+               operands may already have changed. The caller must discard this copy. */
+            if (stage >= 3 && c < 0) return -1;
             int p = relabel_plain_triples(code, (size_t)mdsz, t);
             if (c > 0 || p > 0) {
                 CC_SHA256(code, (CC_LONG)mdsz, hash);
