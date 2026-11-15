@@ -150,6 +150,7 @@ enum { OBJ_BUFFER = 1, OBJ_TEXTURE = 2, OBJ_FUNCTION = 6, OBJ_SERIALIZED = 7, OB
     id<MTLCommandBuffer> last_cb;
     double encode_time, gpu_wait_time;
     BOOL pipeline_set; /* in the open encoder */
+    BOOL warned_dynamic_vertex_stride; /* iOS 16 cannot override a pipeline's vertex stride */
     BOOL tess_factors; /* so is a tessellation factor buffer */
     uint32_t pre_raster_samples, pre_imageblock, pre_threadgroup, pre_tile_w, pre_tile_h; /* for the next pass */
     BOOL tracing; /* HV_PVG_TRACE_FILE exists: say what each exec draws */
@@ -1620,10 +1621,28 @@ typedef struct {
             offsets[i] = (NSUInteger)U64(12 + i * 20);
             strides[i] = (NSUInteger)U64(20 + i * 20);
         }
-        [e setVertexBuffers:buffers offsets:offsets attributeStrides:strides withRange:NSMakeRange(index, count)];
+        if (@available(iOS 17.0, macOS 14.0, *)) {
+            [e setVertexBuffers:buffers offsets:offsets attributeStrides:strides withRange:NSMakeRange(index, count)];
+        } else {
+            [e setVertexBuffers:buffers offsets:offsets withRange:NSMakeRange(index, count)];
+            if (!warned_dynamic_vertex_stride) {
+                warned_dynamic_vertex_stride = YES;
+                [self complain:@"dynamic vertex strides need iOS 17; using the pipeline's fixed strides (experimental)"];
+            }
+        }
         break;
     }
-    case 166: [e setVertexBufferOffset:(NSUInteger)U64(4) attributeStride:(NSUInteger)U64(12) atIndex:U32(0)]; break;
+    case 166:
+        if (@available(iOS 17.0, macOS 14.0, *)) {
+            [e setVertexBufferOffset:(NSUInteger)U64(4) attributeStride:(NSUInteger)U64(12) atIndex:U32(0)];
+        } else {
+            [e setVertexBufferOffset:(NSUInteger)U64(4) atIndex:U32(0)];
+            if (!warned_dynamic_vertex_stride) {
+                warned_dynamic_vertex_stride = YES;
+                [self complain:@"dynamic vertex strides need iOS 17; using the pipeline's fixed strides (experimental)"];
+            }
+        }
+        break;
     case 101: {
         float c[4];
         memcpy(c, r.p, sizeof c);

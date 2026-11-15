@@ -52,6 +52,7 @@ jobs:
           path: Husk
 
       - name: Cache Husk's sources and prebuilt iOS pieces
+        id: husk-cache
         uses: actions/cache@v4
         with:
           path: |
@@ -91,6 +92,16 @@ jobs:
       - name: Copy prebuilt deps into Henge
         working-directory: Henge
         run: zsh ios/scripts/fetch_deps.sh
+
+      # Keep successful dependency builds even if a later compatibility check fails.
+      - name: Save built iOS dependencies
+        if: steps.husk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            Husk/third_party/build
+            Husk/build
+          key: husk-ios-arm64-${{ hashFiles('Husk/scripts/build_ios.sh', 'Husk/scripts/fetch_sources.sh') }}
 
       - name: Build the restore stack (libirecovery, usbmuxd, idevicerestore)
         working-directory: Henge

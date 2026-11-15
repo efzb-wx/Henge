@@ -26,6 +26,9 @@ the packager as an environment variable (`HENGE_ENTITLEMENTS=... ios/scripts/pac
   In particular, the existing guest shader relabelling targets iOS 17's Metal
   format; iOS 16 may reject these shaders or show a black screen. This change
   does not establish compatibility with iOS 16's private Metal compiler.
+  Dynamic vertex-stride commands also use the older buffer/offset API on iOS 16,
+  retaining the pipeline's fixed strides and logging a warning; draws that need
+  a different dynamic stride may render incorrectly.
 - **Hardware**: iOS 16 does not relax the A14/M1-or-newer requirement.
 
 - **JIT**: on iOS 26+ (TXM) only an attached debugger can grant executable
