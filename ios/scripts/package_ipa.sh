@@ -64,6 +64,8 @@ if [ -n "$(find "$STAGE" -iname 'AVPBooter*' -o -iname 'AVPSEPBooter*')" ]; then
   exit 1
 fi
 sign() { codesign --force --sign - --timestamp=none "$@"; }
+# The TrollStore bundle can have no frameworks or extensions after stripping.
+setopt NULL_GLOB
 for fw in "$SAPP"/Frameworks/*.framework; do [ -d "$fw" ] && sign "$fw"; done
 for ex in "$SAPP"/PlugIns/*.appex; do [ -d "$ex" ] && sign "$ex"; done
 sign --entitlements "$ENT" "$SAPP"
